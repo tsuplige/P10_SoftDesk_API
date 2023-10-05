@@ -15,8 +15,18 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from rest_framework import routers
+
+from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset)
+
+router = routers.SimpleRouter()
+
+router.register('project', ProjectViewset, basename='project')
+router.register('comment', CommentViewset, basename='comment')
+router.register('issue', IssueViewset, basename='issue')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", include(router.urls))
 ]

@@ -10,8 +10,13 @@ class Project(models.Model):
         IOS = "IOS"
         ANDROID = "Android"
 
+    name = models.fields.CharField(max_length=100)
     description = models.fields.CharField(max_length=1000)
     type = models.fields.CharField(choices=Type.choices, max_length=10)
+    time_created = models.DateTimeField(auto_now_add=True)
+    author = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='authored_projects')
 
 
 class Contributor(models.Model):
@@ -20,7 +25,8 @@ class Contributor(models.Model):
         to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='working')
 
-    project = models.ForeignKey(to=Project, related_name='work_on')
+    project = models.ForeignKey(to=Project, related_name='work_on',
+                                on_delete=models.CASCADE, default=None)
 
 
 class Issue(models.Model):
@@ -40,11 +46,26 @@ class Issue(models.Model):
         IN_PROGRESS = "In Progress"
         FINISHED = "Finished"
 
-    project = models.ForeignKey(to=Project)
+    project = models.ForeignKey(to=Project, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=500)
-    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, null=True)
+    priority = models.fields.CharField(choices=Priority.choices, max_length=10)
+    balise = models.fields.CharField(choices=Balise.choices,  max_length=10)
+    status = models.fields.CharField(choices=Status.choices,  max_length=15,
+                                     default='To Do')
+    time_created = models.DateTimeField(auto_now_add=True)
+    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, null=True,
+                                    on_delete=models.SET_NULL,
+                                    related_name='contributed_issues')
+    author = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='authored_issues')
 
 
 class Comment(models.Model):
-    issue = models.ForeignKey(to=Issue)
+    issue = models.ForeignKey(to=Issue, on_delete=models.CASCADE)
+    time_created = models.DateTimeField(auto_now_add=True)
+    description = models.CharField(max_length=500)
+    author = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='authored_Comments')
