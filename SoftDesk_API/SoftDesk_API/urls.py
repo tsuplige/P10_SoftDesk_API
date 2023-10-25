@@ -18,15 +18,33 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 
-from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset)
+from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset,
+                                AdminProjectViewset
+                                )
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView    
 
 router = routers.SimpleRouter()
 
-router.register('project', ProjectViewset, basename='project')
-router.register('comment', CommentViewset, basename='comment')
-router.register('issue', IssueViewset, basename='issue')
+router.register(r'projects', ProjectViewset, basename='project')
+router.register(r'projects/(?P<project_id>\d+)/issues',
+                IssueViewset,
+                basename='issues')
+router.register(r'projects/(?P<project_id>\d+)/issues/'
+                r'(?P<issue_id>\d+)/comments',
+                CommentViewset,
+                basename='comments')
+
+router.register('admin/projects', AdminProjectViewset, basename='admin-project')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include(router.urls))
+
+    path('api-auth/', include('rest_framework.urls')),
+    path('api/token/', TokenObtainPairView.as_view(),
+         name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(),
+         name='token_refresh'),
+
+    path("api/", include(router.urls)),
+
 ]
