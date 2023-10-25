@@ -21,12 +21,18 @@ class Project(models.Model):
 
 class Contributor(models.Model):
 
+    class Role(models.TextChoices):
+        CONTRIBUTOR = "Contributeur"
+        AUTHOR = "Auteur"
+
     user = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='working')
 
     project = models.ForeignKey(to=Project, related_name='work_on',
                                 on_delete=models.CASCADE, default=None)
+
+    role = models.fields.CharField(choices=Role.choices, max_length=50)
 
 
 class Issue(models.Model):
@@ -60,6 +66,18 @@ class Issue(models.Model):
     author = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='authored_issues')
+
+    def in_progress(self):
+        if self.status == "In Progress":
+            return
+        self.status = "In Progress"
+        self.save()
+
+    def finished(self):
+        if self.status == "Finished":
+            return
+        self.status = "Finished"
+        self.save()
 
 
 class Comment(models.Model):
