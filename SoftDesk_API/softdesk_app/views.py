@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from softdesk_app.permissions import IsAuthor
 
 from softdesk_app.models import Project, Contributor, Issue, Comment
 from softdesk_app.serializers import (ProjectListSerializer,
@@ -19,7 +21,11 @@ class ProjectViewset(ModelViewSet):
 
     serializer_class = ProjectListSerializer
     detail_serializer_class = ProjectDetailSerializer
-    permission_classes = [IsAuthenticated]
+        
+    if action == 'destroy':
+        permission_classes = [IsAuthor]
+    else:
+        permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Project.objects.filter(work_on__user=self.request.user)
@@ -27,11 +33,13 @@ class ProjectViewset(ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return self.detail_serializer_class
+        # elif self.action == 'destroy':
+            
         return super().get_serializer_class()
 
     @action(detail=False, methods=['post'])
     def create_project(self, request):
-        data = request.data
+        data = request.data.copy()
 
         data['work_on'] = [{'user': request.user.id}]
 
@@ -39,8 +47,11 @@ class ProjectViewset(ModelViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data,
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class ContributorViewset(ModelViewSet):
