@@ -24,12 +24,17 @@ class ProjectDetailSerializer(ModelSerializer):
                   'description',
                   'time_created', 'author']
 
+    def validate_name(self, value):
+        if Project.objects.filter(name=value).exists():
+            raise ValidationError('Project already exit')
+        return value
+
 
 class ContributorSerializer(ModelSerializer):
 
     class Meta:
         model = Contributor
-        fields = ['id', 'user', 'project']
+        fields = ['id', 'user', 'project', 'role']
 
 
 class IssueListSerializer(ModelSerializer):
