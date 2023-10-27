@@ -2,10 +2,10 @@
 # from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from softdesk_app.permissions import IsAuthor
+from softdesk_app.permissions import IsAuthor, IsContributor
 
 from softdesk_app.models import Project, Contributor, Issue, Comment
 from softdesk_app.serializers import (ProjectListSerializer,
@@ -17,49 +17,94 @@ from softdesk_app.serializers import (ProjectListSerializer,
                                       CommentDetailSerializer)
 
 
-class ProjectViewset(ModelViewSet):
+class ProjectViewset(ReadOnlyModelViewSet):
 
     serializer_class = ProjectListSerializer
     detail_serializer_class = ProjectDetailSerializer
-        
-    if action == 'destroy':
-        permission_classes = [IsAuthor]
-    else:
-        permission_classes = [IsAuthenticated]
+
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Project.objects.filter(work_on__user=self.request.user)
 
+    @action(detail=True, permission_classes=[IsContributor])
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return self.detail_serializer_class
-        # elif self.action == 'destroy':
-            
+
         return super().get_serializer_class()
 
     @action(detail=False, methods=['post'])
     def create_project(self, request):
+
         data = request.data.copy()
-
-        data['work_on'] = [{'user': request.user.id}]
-
-        serializer = ProjectListSerializer(data=data)
+        data['author'] = request.user.id
+        serializer = ProjectDetailSerializer(data=data)
 
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data,
-                            status=status.HTTP_201_CREATED)
+
+            project = serializer.save()
+            contributor_data = {'user': request.user.id,
+                                'project': project.id,
+                                'role': "Auteur"}
+            contributor_serializer = ContributorSerializer(
+                data=contributor_data)
+
+            if contributor_serializer.is_valid():
+                contributor_serializer.save()
+                return Response(serializer.data,
+                                status=status.HTTP_201_CREATED)
+            else:
+                project.delete()
+                return Response(contributor_serializer.errors,
+                                status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'],
+            permission_classes=[IsAuthor])
+    def delete_project(self, request, pk=None):
+
+        if Project.objects.get(pk=pk):
+            project = Project.objects.get(pk=pk)
+        else:
+            return Response({'message': 'Project not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        if project.author == request.user:
+            project.delete()
+            return Response({'message': 'Project deleted successfully'},
+                            status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response({'message': 'You do not have permission to delete this project'},
+                            status=status.HTTP_403_FORBIDDEN)
 
 
 class ContributorViewset(ModelViewSet):
 
     serializer_class = ContributorSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        project_id = self.request.query_params.get('project_id')
+        print(project_id)
         return Contributor.objects.all()
+
+    def delete(self, request):
+        return super().delete(request, *args, **kwargs)
+
+    @action(detail=True, permission_classes=[IsAuthor])
+    def add(self, request):
+
+        data = request.data
+        serializer = ContributorSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class IssueViewset(ModelViewSet):

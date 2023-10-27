@@ -19,7 +19,7 @@ from django.urls import path, include
 from rest_framework import routers
 
 from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset,
-                                AdminProjectViewset
+                                AdminProjectViewset, ContributorViewset
                                 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView    
 
@@ -29,6 +29,9 @@ router.register(r'projects', ProjectViewset, basename='project')
 router.register(r'projects/(?P<project_id>\d+)/issues',
                 IssueViewset,
                 basename='issues')
+router.register(r'projects/(?P<project_id>\d+)/contributors',
+                ContributorViewset,
+                basename='contributors')
 router.register(r'projects/(?P<project_id>\d+)/issues/'
                 r'(?P<issue_id>\d+)/comments',
                 CommentViewset,
