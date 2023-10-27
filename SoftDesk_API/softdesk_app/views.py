@@ -6,6 +6,8 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from softdesk_app.permissions import IsAuthor, IsContributor
+from django.conf import settings
+from authentication.models import User
 
 from softdesk_app.models import Project, Contributor, Issue, Comment
 from softdesk_app.serializers import (ProjectListSerializer,
@@ -81,40 +83,65 @@ class ProjectViewset(ReadOnlyModelViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
 
-class ContributorViewset(ModelViewSet):
+class ContributorViewset(ReadOnlyModelViewSet):
 
     serializer_class = ContributorSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        project_id = self.request.query_params.get('project_id')
-        print(project_id)
-        return Contributor.objects.all()
+        project_id = self.kwargs.get('project_id')
+        return Contributor.objects.filter(project_id=project_id)
 
-    def delete(self, request):
-        return super().delete(request, *args, **kwargs)
+    @action(detail=False, methods=['post', 'delete'])
+    def add_or_delete(self, request, project_id):
+        project = Project.objects.get(pk=project_id)
+        username = request.data.get('username')
 
-    @action(detail=True, permission_classes=[IsAuthor])
-    def add(self, request):
+        user = User.objects.get(username=username)
 
-        data = request.data
-        serializer = ContributorSerializer(data=data)
+        contributor_data = {
+            'user': user.id,
+            'project': project.id
+        }
 
-        if serializer.is_valid():
-            serializer.save()
-        else:
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
+        serializer = ContributorSerializer(data=contributor_data)
+        if request.method == 'POST':
+            if project.author == request.user:
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data,
+                                    status=status.HTTP_201_CREATED)
+                else:
+                    return Response(serializer.errors,
+                                    status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'message': 'You do not have'
+                                 'permission to delete this project'},
+                                status=status.HTTP_403_FORBIDDEN)
+        elif request.method == 'DELETE':
+            if project.author == request.user:
+                contributor = Contributor.objects.get(user=user,
+                                                      project=project)
+                contributor.delete()
+                return Response({'message': 'Project deleted successfully'},
+                                status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({'message': 'You do not have'
+                                 ' permission to delete this project'},
+                                status=status.HTTP_403_FORBIDDEN)
 
 
 class IssueViewset(ModelViewSet):
 
     serializer_class = IssueListSerializer
     detail_serializer_class = IssueDetailSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         project_id = self.kwargs.get('project_id')
-        return Issue.objects.filter(project_id=project_id)
+        if Contributor.objects.get(project=project_id,
+                                   user=self.request.user).exists():
+            return Issue.objects.filter(project_id=project_id)
 
     def get_serializer_class(self):
         if self.action == 'retrieve':

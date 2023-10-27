@@ -31,7 +31,8 @@ class Contributor(models.Model):
 
     project = models.ForeignKey(to=Project, related_name='work_on',
                                 on_delete=models.CASCADE, default=None)
-    role = models.fields.CharField(choices=Role.choices, max_length=50, default='Contributeur')
+    role = models.fields.CharField(choices=Role.choices, max_length=50,
+                                   default='Contributeur')
 
     def is_author(self):
         if self.role == "Auteur":

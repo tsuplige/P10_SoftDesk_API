@@ -21,7 +21,8 @@ from rest_framework import routers
 from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset,
                                 AdminProjectViewset, ContributorViewset
                                 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView    
+from rest_framework_simplejwt.views import (TokenObtainPairView,
+                                            TokenRefreshView)
 
 router = routers.SimpleRouter()
 
@@ -37,7 +38,8 @@ router.register(r'projects/(?P<project_id>\d+)/issues/'
                 CommentViewset,
                 basename='comments')
 
-router.register('admin/projects', AdminProjectViewset, basename='admin-project')
+router.register('admin/projects', AdminProjectViewset,
+                basename='admin-project')
 
 urlpatterns = [
     path("admin/", admin.site.urls),

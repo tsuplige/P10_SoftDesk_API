@@ -36,6 +36,14 @@ class ContributorSerializer(ModelSerializer):
         model = Contributor
         fields = ['id', 'user', 'project', 'role']
 
+    def validate(self, data):
+        user = data['user']
+        project = data['project']
+
+        if Contributor.objects.filter(user=user, project=project).exists():
+            raise ValidationError('Contributor already exists for this user and project.')
+        return data
+
 
 class IssueListSerializer(ModelSerializer):
 
