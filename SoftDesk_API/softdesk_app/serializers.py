@@ -41,7 +41,8 @@ class ContributorSerializer(ModelSerializer):
         project = data['project']
 
         if Contributor.objects.filter(user=user, project=project).exists():
-            raise ValidationError('Contributor already exists for this user and project.')
+            raise ValidationError('Contributor already exists'
+                                  ' for this user and project.')
         return data
 
 
@@ -54,13 +55,13 @@ class IssueListSerializer(ModelSerializer):
 
     def validate_name(self, value):
         if Issue.objects.filter(name=value).exists():
-            raise ValidationError('Project already exit')
+            raise ValidationError('Issue already exit')
         return value
 
 
 class IssueDetailSerializer(ModelSerializer):
 
-    project = ProjectDetailSerializer()
+    # project = ProjectDetailSerializer()
 
     class Meta:
         model = Issue

@@ -12,7 +12,7 @@ class ContributorAdmin(admin.ModelAdmin):
 
 
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ('project', 'name', 'priority', 'balise',
+    list_display = ('id', 'project', 'name', 'priority', 'balise',
                     'status', 'time_created')
 
 

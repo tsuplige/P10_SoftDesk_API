@@ -1,13 +1,14 @@
-# from django.shortcuts import render
-# from rest_framework.views import APIView
+
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from softdesk_app.permissions import IsAuthor, IsContributor
-from django.conf import settings
+from django.shortcuts import get_object_or_404
+
 from authentication.models import User
+from rest_framework.exceptions import PermissionDenied
 
 from softdesk_app.models import Project, Contributor, Issue, Comment
 from softdesk_app.serializers import (ProjectListSerializer,
@@ -79,7 +80,8 @@ class ProjectViewset(ReadOnlyModelViewSet):
             return Response({'message': 'Project deleted successfully'},
                             status=status.HTTP_204_NO_CONTENT)
         else:
-            return Response({'message': 'You do not have permission to delete this project'},
+            return Response({'message': 'You do not have '
+                             'permission to delete this project'},
                             status=status.HTTP_403_FORBIDDEN)
 
 
@@ -139,14 +141,90 @@ class IssueViewset(ModelViewSet):
 
     def get_queryset(self):
         project_id = self.kwargs.get('project_id')
-        if Contributor.objects.get(project=project_id,
-                                   user=self.request.user).exists():
-            return Issue.objects.filter(project_id=project_id)
+        user = self.request.user
+
+        is_contributor = Contributor.objects.filter(
+            user=user,
+            project__id=project_id
+        ).exists()
+
+        if is_contributor:
+            return Issue.objects.filter(project__id=project_id)
+        else:
+            raise PermissionDenied("You don't have permission to"
+                                   " access issues in this project.")
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return self.detail_serializer_class
         return super().get_serializer_class()
+
+    @action(detail=False, methods=['post'])
+    def create_issue(self, request, project_id):
+        project = Project.objects.get(pk=project_id)
+        user = self.request.user
+        contributor_name = request.data.get('contributor')
+        contributor = User.objects.get(username=contributor_name)
+
+        is_contributor = Contributor.objects.filter(
+            user=user,
+            project=project
+        ).exists()
+
+        if not is_contributor:
+            raise PermissionDenied("You don't have permission"
+                                   " to create an issue in this project.")
+
+        data = request.data.copy()
+        print(data)
+        data['project'] = project.id
+        data['author'] = user.id
+        data['contributor'] = contributor.id
+
+        serializer = IssueDetailSerializer(data=data)
+
+        if serializer.is_valid():
+            issue = serializer.save()
+            print(issue)
+            return Response(serializer.data,
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'],
+            permission_classes=[IsAuthenticated])
+    def delete_issue(self, request, project_id, pk=None):
+
+        project = Project.objects.get(pk=project_id)
+        user = self.request.user
+
+        is_contributor = Contributor.objects.filter(
+            user=user,
+            project=project
+        ).exists()
+
+        if not is_contributor:
+            raise PermissionDenied("You don't have permission"
+                                   " to delete an issue in this project.")
+        try:
+            issue = get_object_or_404(Issue, pk=pk)
+
+            if issue.project.id != project_id:
+                return Response({'message': 'Issue does not'
+                                 ' belong to this project'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            if issue.author == request.user:
+                issue.delete()
+                return Response({'message': 'Issue deleted successfully.'},
+                                status=status.HTTP_204_NO_CONTENT)
+            else:
+                raise PermissionDenied("You don't have permission"
+                                       " to delete this issue.")
+        except Issue.DoesNotExist:
+            return Response({'message': 'Issue not found'},
+                            status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'])
     def in_progress(self, request, pk):

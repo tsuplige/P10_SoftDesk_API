@@ -44,6 +44,10 @@ router.register('admin/projects', AdminProjectViewset,
 urlpatterns = [
     path("admin/", admin.site.urls),
 
+    path('api/projects/<int:project_id>/issues/<int:pk>/delete_issue/',
+         IssueViewset.as_view({'delete': 'delete_issue'}),
+         name='delete-issue'),
+
     path('api-auth/', include('rest_framework.urls')),
     path('api/token/', TokenObtainPairView.as_view(),
          name='token_obtain_pair'),
