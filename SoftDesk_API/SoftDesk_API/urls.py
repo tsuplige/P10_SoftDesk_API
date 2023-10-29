@@ -19,8 +19,9 @@ from django.urls import path, include
 from rest_framework import routers
 
 from softdesk_app.views import (ProjectViewset, CommentViewset, IssueViewset,
-                                AdminProjectViewset, ContributorViewset
+                                ContributorViewset
                                 )
+from authentication.views import SignupView
 from rest_framework_simplejwt.views import (TokenObtainPairView,
                                             TokenRefreshView)
 
@@ -33,13 +34,9 @@ router.register(r'projects/(?P<project_id>\d+)/issues',
 router.register(r'projects/(?P<project_id>\d+)/contributors',
                 ContributorViewset,
                 basename='contributors')
-router.register(r'projects/(?P<project_id>\d+)/issues/'
-                r'(?P<issue_id>\d+)/comments',
+router.register(r'issues/(?P<issue_id>\d+)/comments',
                 CommentViewset,
                 basename='comments')
-
-router.register('admin/projects', AdminProjectViewset,
-                basename='admin-project')
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -53,6 +50,8 @@ urlpatterns = [
          name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(),
          name='token_refresh'),
+
+    path("api/signup/", SignupView.as_view(), name='signup'),
 
     path("api/", include(router.urls)),
 

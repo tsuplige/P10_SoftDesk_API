@@ -1,4 +1,4 @@
-from django.shortcuts import render
+# from django.shortcuts import render
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -13,10 +13,15 @@ class SignupView(generics.CreateAPIView):
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def create(self, request):
+        data = request.data
+        serializer = self.get_serializer(data=data)
         if serializer.is_valid():
-            user = serializer.save()
+            user = User.objects.create_user(username=data['username'],
+                                            password=data['password'],
+                                            birthdate=data['birthdate'],
+                                            can_data_be_shared=data['can_data_be_shared'],
+                                            can_be_contacted=data['can_be_contacted'])
             return Response({"user_id": user.id,
                              "message": "Inscription réussie"},
                             status=status.HTTP_201_CREATED)

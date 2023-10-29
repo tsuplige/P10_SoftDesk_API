@@ -17,7 +17,7 @@ class IssueAdmin(admin.ModelAdmin):
 
 
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('issue', 'author', 'time_created')
+    list_display = ('id', 'issue', 'author', 'time_created')
 
 
 admin.site.register(User)

@@ -227,33 +227,91 @@ class IssueViewset(ModelViewSet):
                             status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'])
-    def in_progress(self, request, pk):
+    def in_progress(self, request, project_id, pk):
         self.get_object().in_progress()
-        return Response()
+        return Response({"message": "L'issue est maintenant en cours."})
 
     @action(detail=True, methods=['post'])
-    def finished(self, request, pk):
+    def finished(self, request, project_id, pk):
         self.get_object().finished()
-        return Response()
+        return Response({"message": "L'issue est maintenant terminée."})
 
 
-class CommentViewset(ModelViewSet):
+class CommentViewset(ReadOnlyModelViewSet):
 
     serializer_class = CommentListSerializer
     detail_serializer_class = CommentDetailSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Comment.objects.all()
+        issue_id = self.kwargs.get('issue_id')
+        user = self.request.user
+        issue = Issue.objects.get(id=issue_id)
+        project_id = issue.project_id
+        is_contributor = Contributor.objects.filter(
+            user=user,
+            project__id=project_id
+        ).exists()
+
+        if is_contributor:
+            return Comment.objects.filter(issue__id=issue_id)
+        else:
+            raise PermissionDenied("You don't have permission to access Comments in this project.")
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return self.detail_serializer_class
         return super().get_serializer_class()
 
+    @action(detail=False, methods=['post'])
+    def add_comment(self, request, issue_id):
+        issue = Issue.objects.get(pk=issue_id)
+        user = self.request.user
 
-class AdminProjectViewset(ModelViewSet):
-    serializer_class = ProjectListSerializer
-    detail_serializer_class = ProjectDetailSerializer
+        is_contributor = Contributor.objects.filter(
+            user=user,
+            project=issue.project
+        ).exists()
 
-    def get_queryset(self):
-        return Project.objects.all()
+        if not is_contributor:
+            raise PermissionDenied("You don't have"
+                                   " permission to create"
+                                   " a comment in this project.")
+
+        data = request.data.copy()
+        data['issue'] = issue.id
+        data['author'] = user.id
+
+        serializer = CommentListSerializer(data=data)
+
+        if serializer.is_valid():
+            comment = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'])
+    def delete_comment(self, request, issue_id, pk=None):
+        
+        try:
+            comment = get_object_or_404(Comment, pk=pk)
+            
+            if request.user == comment.author:
+                comment.delete()
+                return Response({'message': 'comment deleted successfully.'},
+                                status=status.HTTP_204_NO_CONTENT)
+            else:
+                raise PermissionDenied("You don't have permission"
+                                       " to delete this comment.")
+        except Comment.DoesNotExist:
+            return Response({'message': 'Comment not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+            
+            
+
+# class AdminProjectViewset(ModelViewSet):
+#     serializer_class = ProjectListSerializer
+#     detail_serializer_class = ProjectDetailSerializer
+
+#     def get_queryset(self):
+#         return Project.objects.all()
