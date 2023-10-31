@@ -65,6 +65,25 @@ class ProjectViewset(ReadOnlyModelViewSet):
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['put'])
+    def update_project(self, request, pk=None):
+        project = self.get_object()
+
+        if project.author == request.user:
+            serializer = ProjectDetailSerializer(project,
+                                                 data=request.data,
+                                                 partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data,
+                                status=status.HTTP_200_OK)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        else:
+            raise PermissionDenied("You don't have permission "
+                                   "to update this project.")
+
     @action(detail=True, methods=['delete'],
             permission_classes=[IsAuthor])
     def delete_project(self, request, pk=None):
@@ -192,6 +211,25 @@ class IssueViewset(ModelViewSet):
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['put'])
+    def update_issue(self, request, project_id, pk=None):
+        issue = self.get_object()
+
+        if issue.author == request.user:
+            serializer = IssueDetailSerializer(issue,
+                                               data=request.data,
+                                               partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data,
+                                status=status.HTTP_200_OK)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        else:
+            raise PermissionDenied("You don't have permission"
+                                   " to update this issue.")
+
     @action(detail=True, methods=['delete'],
             permission_classes=[IsAuthenticated])
     def delete_issue(self, request, project_id, pk=None):
@@ -256,7 +294,8 @@ class CommentViewset(ReadOnlyModelViewSet):
         if is_contributor:
             return Comment.objects.filter(issue__id=issue_id)
         else:
-            raise PermissionDenied("You don't have permission to access Comments in this project.")
+            raise PermissionDenied("You don't have permission "
+                                   "to access Comments in this project.")
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -288,14 +327,34 @@ class CommentViewset(ReadOnlyModelViewSet):
             comment = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'])
+    def update_comment(self, request, issue_id, pk=None):
+        comment = self.get_object()
+
+        if comment.author == request.user:
+            serializer = CommentDetailSerializer(comment,
+                                                 data=request.data,
+                                                 partial=True)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data,
+                                status=status.HTTP_200_OK)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        else:
+            raise PermissionDenied("You don't have permission "
+                                   "to update this comment.")
 
     @action(detail=True, methods=['delete'])
     def delete_comment(self, request, issue_id, pk=None):
-        
+
         try:
             comment = get_object_or_404(Comment, pk=pk)
-            
+
             if request.user == comment.author:
                 comment.delete()
                 return Response({'message': 'comment deleted successfully.'},
@@ -306,12 +365,3 @@ class CommentViewset(ReadOnlyModelViewSet):
         except Comment.DoesNotExist:
             return Response({'message': 'Comment not found'},
                             status=status.HTTP_404_NOT_FOUND)
-            
-            
-
-# class AdminProjectViewset(ModelViewSet):
-#     serializer_class = ProjectListSerializer
-#     detail_serializer_class = ProjectDetailSerializer
-
-#     def get_queryset(self):
-#         return Project.objects.all()

@@ -14,9 +14,11 @@ class IsAuthor(BasePermission):
     def has_permission(self, request, view):
         project = view.get_object()
         contributor = Contributor.objects.filter(project=project.id,
-                                                 user=request.user)[0]
-        if contributor.is_author():
+                                                 user=request.user).first()
+
+        if contributor and contributor.is_author():
             print('est auteur')
             return True
-        print('nest pas auteur')
+
+        print('n\'est pas auteur')
         return False
